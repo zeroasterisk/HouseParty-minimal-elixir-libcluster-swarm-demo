@@ -7,8 +7,6 @@ defmodule HouseParty.PersonWorker do
   @timeout 300_000
 
   defstruct name: nil,
-
-            # atom
             # music playing right now (see DJWorker)
             current_music: nil,
             # count of ticks (~ seconds)
@@ -20,7 +18,6 @@ defmodule HouseParty.PersonWorker do
   end
 
   def start_link(name) when is_atom(name), do: start_link(%PersonWorker{name: name})
-  def take(pid, fields), do: GenServer.call(pid, {:take, fields})
   def set(pid, field, value), do: GenServer.call(pid, {:set, field, value})
 
   # GenServer internal API
@@ -29,8 +26,8 @@ defmodule HouseParty.PersonWorker do
     {:ok, state}
   end
 
-  def handle_call({:take, fields}, _from, state) do
-    {:reply, {:ok, Map.take(state, fields)}, state}
+  def handle_call({:describe}, _from, state) do
+    {:reply, {:ok, desc = get_desc(state)}, state}
   end
 
   def handle_call({:set, field, value}, _from, state) do
@@ -64,5 +61,13 @@ defmodule HouseParty.PersonWorker do
   # run tick approx every second (with drift)
   def schedule_work(%PersonWorker{} = _state) do
     Process.send_after(self(), {:tick}, 1_000)
+  end
+
+  # describe the person
+  def get_desc(%PersonWorker{name: name, current_music: nil}) do
+    "no music playing for #{name} [#{inspect(self)} on #{node()}]"
+  end
+  def get_desc(%PersonWorker{name: name, current_music: music}) do
+    "#{music} playing for #{name} [#{inspect(self)} on #{node()}]"
   end
 end

@@ -8,23 +8,12 @@ defmodule HouseParty.Application do
     port = get_port(Application.get_env(:house_party, :port))
     Logger.info(fn -> "HTTP interface starting with port #{port}" end)
 
-    libcluster_topologies = [
-      hpgcpcluster: [
-        strategy: Cluster.Strategy.Kubernetes,
-        config: [
-          mode: :ip,
-          # these must match the Kubernetes Deployment values
-          kubernetes_node_basename: "housepartyapp",
-          kubernetes_selector: "app=housepartyapp",
-          # how fast are we checking for changes?
-          polling_interval: 10_000
-        ]
-      ]
-    ]
+    # topologies for the libcluster config
+    libcluster_topologies = Application.get_env(:libcluster, :topologies)
 
     children = [
       Plug.Cowboy.child_spec(scheme: :http, plug: HouseParty.Router, options: [port: port]),
-      {HouseParty.StatsWorker, []},
+      {HouseParty.DJWorker, []},
       {Cluster.Supervisor, [libcluster_topologies, [name: HouseParty.ClusterSupervisor]]}
     ]
 

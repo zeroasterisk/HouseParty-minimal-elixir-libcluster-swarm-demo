@@ -27,38 +27,17 @@ defmodule HouseParty.DJWorker do
             duration_sec: 0
 
   # Helpul external API
-  def start_link(%DJWorker{} = state) do
-    GenServer.start_link(__MODULE__, state, timeout: @timeout)
+  def start_link([]) do
+    GenServer.start_link(__MODULE__, %DJWorker{}, [
+      name: __MODULE__,
+      timeout: @timeout,
+    ])
   end
-
-  def start_link(), do: start_link(%DJWorker{})
-  def take(pid, fields), do: GenServer.call(pid, {:take, fields})
 
   # GenServer internal API
   def init(%DJWorker{} = state) do
     schedule_work(state)
     {:ok, state}
-  end
-
-  def handle_call({:take, fields}, _from, state) do
-    {:reply, {:ok, Map.take(state, fields)}, state}
-  end
-
-  # These are special swarm interfaces to control handoff and migration
-  def handle_call({:swarm, :begin_handoff}, _from, state) do
-    {:reply, {:resume, state}, state}
-  end
-
-  def handle_cast({:swarm, :end_handoff, state}, _init_state) do
-    {:noreply, state}
-  end
-
-  def handle_cast({:swarm, :resolve_conflict, other_node_state}, state) do
-    {:noreply, state}
-  end
-
-  def handle_info({:swarm, :die}, state) do
-    {:stop, :shutdown, state}
   end
 
   # run a clock-change_songs in the room
@@ -69,6 +48,7 @@ defmodule HouseParty.DJWorker do
     {:noreply, new_state}
   end
 
+  # setup a basic loop, cycle after song duration
   def schedule_work(%DJWorker{duration_sec: duration_sec} = _state) do
     Process.send_after(self(), {:change_songs}, min(duration_sec, 360) * 1_000)
   end
@@ -83,9 +63,8 @@ defmodule HouseParty.DJWorker do
     })
   end
 
-  def play_music(%DJWorker{current_music: current_music} = _state) do
-    # assign current_music to all people
+  def play_music(%DJWorker{current_music: music}) do
     HouseParty.get_local_people_pids()
-    |> Enum.each(fn pid -> PersonWorker.set(pid, :current_music, current_music) end)
+    |> Enum.each(fn(pid) -> HouseParty.PersonWorker.set(pid, :current_music, music) end)
   end
 end

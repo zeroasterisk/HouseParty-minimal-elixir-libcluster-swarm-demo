@@ -31,21 +31,12 @@ defmodule HouseParty.Router do
   end
 
   defp stats_body() do
-    self_stats = StatsWorker.local_stats()
     nodes = :erlang.nodes()
-
-    node_stats =
-      nodes
-      |> Enum.map(fn node_name ->
-        # get the local_stats via a remote call to the node
-        stat_lines = ["none yet"]
-        ["## #{node_name} ##" | stat_lines]
-      end)
-
+    node_name = node()
+    node_stats = HouseParty.get_people_descriptions()
     node_stat_text = node_stats |> Enum.flatten() |> Enum.join("\n")
-
     """
-    self: #{inspect(:erlang.node())}\nnodes: #{inspect(nodes)}
+    self: #{inspect(node_name)}\nnodes: #{inspect(nodes)}
 
     #{node_stat_text}
     """
